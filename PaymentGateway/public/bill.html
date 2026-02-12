@@ -107,15 +107,32 @@
   </div>
 
 <script>
+  // 🔧 ADDED: Backend API URL & tank deduction
+  const API_URL = 'http://localhost:3567';
+  
   // Read query params
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get("order_id") || "N/A";
   const amount = params.get("amount") || "0";
+  const liters = params.get("liters") || "0";  // 🔧 ADDED: liters param
 
   document.getElementById("orderId").innerText = orderId;
   document.getElementById("orderId2").innerText = orderId;
   document.getElementById("totalAmount").innerText = "₹" + amount;
   document.getElementById("amount2").innerText = "₹" + amount;
+
+  // 🔧 NEW: Verify payment & deduct tank water
+  async function verifyPayment() {
+    try {
+      await fetch(`${API_URL}/payment-success?order_id=${orderId}&liters=${liters}`);
+      console.log('✅ Tank water deducted for order:', orderId);
+    } catch (error) {
+      console.error('❌ Payment verification failed:', error);
+    }
+  }
+
+  // Run tank deduction on page load
+  verifyPayment();
 
   // Live date & time
   function updateTime() {
@@ -133,7 +150,7 @@
     countdown.innerText = timeLeft;
     if (timeLeft === 0) {
       clearInterval(timer);
-      window.location.href = "https://water.ionode.cloud";
+      window.location.href = "http://localhost:5173";
     }
   }, 1000);
 
