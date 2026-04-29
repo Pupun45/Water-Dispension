@@ -106,9 +106,9 @@
 
   </div>
 
-<script>
-  // 🔧 ADDED: Backend API URL & tank deduction
-  const API_URL = 'http://localhost:3567';
+<script type="module">
+  // 🔧 Use Vite environment variables
+  const API_URL = import.meta.env.VITE_API_URL;
   
   // Read query params
   const params = new URLSearchParams(window.location.search);
@@ -150,12 +150,12 @@
     countdown.innerText = timeLeft;
     if (timeLeft === 0) {
       clearInterval(timer);
-      window.location.href = "http://localhost:5173";
+      window.location.href = "https://water-dispenser.ionode.cloud";
     }
   }, 1000);
 
   // Download PDF
-  async function downloadPDF() {
+  window.downloadPDF = async function() {
     const { jsPDF } = window.jspdf;
     const content = document.getElementById("printArea");
 

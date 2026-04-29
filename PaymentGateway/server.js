@@ -10,6 +10,8 @@ const { Cashfree, CFEnvironment } = require("cashfree-pg");
 
 const app = express();
 const port = process.env.PORT || 3567;
+const FRONTEND_URL = process.env.FRONTEND_URL ;
+const BACKEND_URL = process.env.BACKEND_URL;
 
 /* ================= MIDDLEWARE ================= */
 app.use(bodyParser.json());
@@ -62,7 +64,7 @@ const cashfree = new Cashfree(
 /* ================= TANK APIs ================= */
 
 app.use(cors({
-  origin: ["http://localhost:5173"],
+  origin: [FRONTEND_URL, "http://localhost:5173"],
   methods: ["GET", "POST", "PUT", "DELETE"],
 }));
 
@@ -202,7 +204,7 @@ app.post("/create-order", async (req, res) => {
 
     const orderId = `order_${Date.now()}`;
     
-    const frontendUrl = "http://localhost:5173";  
+    const frontendUrl = FRONTEND_URL;  
 
     const request = {
       order_id: orderId,
@@ -215,7 +217,7 @@ app.post("/create-order", async (req, res) => {
         customer_phone: mobile,
       },
       order_meta: {
-  return_url: `http://localhost:3567/bill.html?order_id=${orderId}&amount=${amount}&liters=${liters}`
+  return_url: `${BACKEND_URL}/bill.html?order_id=${orderId}&amount=${amount}&liters=${liters}`
 }
     };
 

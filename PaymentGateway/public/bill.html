@@ -108,7 +108,7 @@
 
 <script>
   // 🔧 ADDED: Backend API URL & tank deduction
-  const API_URL = 'http://localhost:3567';
+  const API_URL = window.location.origin;
   
   // Read query params
   const params = new URLSearchParams(window.location.search);
@@ -150,7 +150,7 @@
     countdown.innerText = timeLeft;
     if (timeLeft === 0) {
       clearInterval(timer);
-      window.location.href = "http://localhost:5173";
+      window.location.href = "https://water-dispenser.ionode.cloud";
     }
   }, 1000);
 
