@@ -106,7 +106,7 @@ app.get("/tank", async (req, res) => {
 // UPDATE tank (manual override supported)
 app.put("/tank", async (req, res) => {
   try {
-    const { tank_capacity, tds, remaining, deducted_water } = req.body;
+    const { tank_capacity, tds, remaining, deducted_water, request } = req.body;
 
     const tank = await Tank.findOne();
     if (!tank) return res.status(404).json({ error: "Tank not found" });
@@ -125,7 +125,11 @@ app.put("/tank", async (req, res) => {
       tank.deducted_water = Number(deducted_water);
     }
 
-    // 🔑 Removed 'request' update from here to prevent accidental resets to 0
+    // 🔑 Explicitly update request if provided (handles 0 correctly)
+    if (request !== undefined) {
+      tank.request = Number(request);
+    }
+
     await tank.save();
 
     res.json({ message: "Tank updated", tank });
