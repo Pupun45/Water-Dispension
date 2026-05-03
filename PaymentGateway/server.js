@@ -219,8 +219,8 @@ app.post("/create-order", async (req, res) => {
         customer_phone: mobile,
       },
       order_meta: {
-  return_url: `${BACKEND_URL}/bill.html?order_id=${orderId}&amount=${amount}&liters=${liters}`
-}
+  return_url: `${FRONTEND_URL}/bill.html?order_id=${orderId}&amount=${amount}&liters=${liters}`
+},
     };
 
     const response = await cashfree.PGCreateOrder(request);
@@ -317,7 +317,7 @@ app.get("/payment-success", async (req, res) => {
       }
 
       res.redirect(
-        `/bill.html?order_id=${order_id}&liters=${used}&remaining=${tank.remaining}`
+        `${FRONTEND_URL}/bill.html?order_id=${order_id}&liters=${used}&remaining=${tank.remaining}`
       );
     } else {
       console.log(`❌ Payment not paid: ${response.data.order_status}`);
