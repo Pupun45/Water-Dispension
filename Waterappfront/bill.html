@@ -107,8 +107,8 @@
   </div>
 
 <script type="module">
-  // 🔧 Use Vite environment variables
-  const API_URL = import.meta.env.VITE_API_URL;
+  // 🔧 Use Vite environment variables with fallback
+  const API_URL = import.meta.env.VITE_API_URL || "https://water-dispenser.api.ionode.cloud";
   
   // Read query params
   const params = new URLSearchParams(window.location.search);
@@ -124,8 +124,12 @@
   // 🔧 NEW: Verify payment & deduct tank water
   async function verifyPayment() {
     try {
-      await fetch(`${API_URL}/payment-success?order_id=${orderId}&liters=${liters}`);
-      console.log('✅ Tank water deducted for order:', orderId);
+      // 🔧 Added Accept header to ensure server returns JSON and not a redirect
+      const response = await fetch(`${API_URL}/payment-success?order_id=${orderId}&liters=${liters}`, {
+        headers: { "Accept": "application/json" }
+      });
+      const data = await response.json();
+      console.log('✅ Payment verified & water deducted:', data);
     } catch (error) {
       console.error('❌ Payment verification failed:', error);
     }
@@ -150,7 +154,7 @@
     countdown.innerText = timeLeft;
     if (timeLeft === 0) {
       clearInterval(timer);
-      window.location.href = "https://water-dispenser.ionode.cloud";
+      window.location.href = window.location.origin;
     }
   }, 1000);
 

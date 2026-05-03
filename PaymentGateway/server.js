@@ -306,22 +306,30 @@ app.get("/payment-success", async (req, res) => {
 
       if (!tank) return res.status(404).send("Tank not found");
 
-      console.log(`✅ SUCCESS: Atomic Tank request set to ${used}L for Order ${order_id}`);
+      const paidAmount = response.data.order_amount;
+      console.log(`✅ SUCCESS: Atomic Tank request set to ${used}L for Order ${order_id}, Amount: ${paidAmount}`);
 
       saveOrder({
         order_id,
-        amount: response.data.order_amount,
+        amount: paidAmount,
         liters: used,
         remaining_water: tank.remaining,
         payment_status: "PAID",
       });
 
-      if (req.headers.accept?.includes('application/json') || req.headers['x-requested-with']) {
-        return res.json({ message: "Payment verified", request: tank.request, remaining: tank.remaining });
+      // 🔧 Fixed: Always return JSON for AJAX/Fetch requests to prevent unwanted redirects during verification
+      if (req.headers.accept?.includes('application/json') || req.headers['x-requested-with'] || req.xhr) {
+        return res.json({ 
+          message: "Payment verified", 
+          request: tank.request, 
+          remaining: tank.remaining,
+          amount: paidAmount 
+        });
       }
 
+      // 🔧 Fixed: Include 'amount' in redirect so the bill can show it even if the URL changes
       res.redirect(
-        `${FRONTEND_URL}/bill.html?order_id=${order_id}&liters=${used}&remaining=${tank.remaining}`
+        `${FRONTEND_URL}/bill.html?order_id=${order_id}&amount=${paidAmount}&liters=${used}&remaining=${tank.remaining}`
       );
     } else {
       console.log(`❌ Payment not paid: ${response.data.order_status}`);

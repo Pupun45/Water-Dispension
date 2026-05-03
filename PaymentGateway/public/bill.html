@@ -124,19 +124,18 @@
   // ✅ Directly set water request — called after Cashfree redirects here (payment confirmed)
   async function setDispenseRequest() {
     try {
-      const res = await fetch(`${API_URL}/tank/set-request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ liters: Number(liters), order_id: orderId }),
+      // 🔧 Use payment-success instead of set-request for better verification
+      const res = await fetch(`${API_URL}/payment-success?order_id=${orderId}&liters=${liters}`, {
+        headers: { "Accept": "application/json" }
       });
       const data = await res.json();
-      console.log(`✅ Dispense request set: ${data.request}L, remaining: ${data.remaining}L`);
+      console.log(`✅ Payment verified & water deducted:`, data);
     } catch (error) {
-      console.error('❌ Failed to set dispense request:', error);
+      console.error('❌ Failed to verify payment:', error);
     }
   }
 
-  // Run on page load (Cashfree already confirmed payment by redirecting here)
+  // Run on page load
   setDispenseRequest();
 
   // Live date & time
