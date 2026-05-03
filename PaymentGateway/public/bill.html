@@ -121,18 +121,23 @@
   document.getElementById("totalAmount").innerText = "₹" + amount;
   document.getElementById("amount2").innerText = "₹" + amount;
 
-  // 🔧 NEW: Verify payment & deduct tank water
-  async function verifyPayment() {
+  // ✅ Directly set water request — called after Cashfree redirects here (payment confirmed)
+  async function setDispenseRequest() {
     try {
-      await fetch(`${API_URL}/payment-success?order_id=${orderId}&liters=${liters}`);
-      console.log('✅ Tank water deducted for order:', orderId);
+      const res = await fetch(`${API_URL}/tank/set-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ liters: Number(liters), order_id: orderId }),
+      });
+      const data = await res.json();
+      console.log(`✅ Dispense request set: ${data.request}L, remaining: ${data.remaining}L`);
     } catch (error) {
-      console.error('❌ Payment verification failed:', error);
+      console.error('❌ Failed to set dispense request:', error);
     }
   }
 
-  // Run tank deduction on page load
-  verifyPayment();
+  // Run on page load (Cashfree already confirmed payment by redirecting here)
+  setDispenseRequest();
 
   // Live date & time
   function updateTime() {
