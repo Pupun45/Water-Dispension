@@ -108,7 +108,7 @@
 
 <script>
   // 🔧 ADDED: Backend API URL & tank deduction
-  const API_URL = 'http://localhost:3567';
+  const API_URL = window.location.origin;
   
   // Read query params
   const params = new URLSearchParams(window.location.search);
@@ -121,18 +121,22 @@
   document.getElementById("totalAmount").innerText = "₹" + amount;
   document.getElementById("amount2").innerText = "₹" + amount;
 
-  // 🔧 NEW: Verify payment & deduct tank water
-  async function verifyPayment() {
+  // ✅ Directly set water request — called after Cashfree redirects here (payment confirmed)
+  async function setDispenseRequest() {
     try {
-      await fetch(`${API_URL}/payment-success?order_id=${orderId}&liters=${liters}`);
-      console.log('✅ Tank water deducted for order:', orderId);
+      // 🔧 Use payment-success instead of set-request for better verification
+      const res = await fetch(`${API_URL}/payment-success?order_id=${orderId}&liters=${liters}`, {
+        headers: { "Accept": "application/json" }
+      });
+      const data = await res.json();
+      console.log(`✅ Payment verified & water deducted:`, data);
     } catch (error) {
-      console.error('❌ Payment verification failed:', error);
+      console.error('❌ Failed to verify payment:', error);
     }
   }
 
-  // Run tank deduction on page load
-  verifyPayment();
+  // Run on page load
+  setDispenseRequest();
 
   // Live date & time
   function updateTime() {
@@ -150,7 +154,7 @@
     countdown.innerText = timeLeft;
     if (timeLeft === 0) {
       clearInterval(timer);
-      window.location.href = "http://localhost:5173";
+      window.location.href = "https://water-dispenser.ionode.cloud";
     }
   }, 1000);
 
