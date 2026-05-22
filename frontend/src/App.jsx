@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import WaterJar from "./Components/Waterjar";
+import AdminPanel from "./Components/AdminPanel";
+import LoginModal from "./Components/LoginModal";
 import { load } from "@cashfreepayments/cashfree-js";
 import "./App.css";
 
@@ -16,6 +18,12 @@ const App = () => {
   const [litersInput, setLitersInput] = useState("");
   const [amountInput, setAmountInput] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Admin state — persisted in localStorage so refresh keeps session alive
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(
+    () => localStorage.getItem("adminLoggedIn") === "true"
+  );
 
   const API_URL = import.meta.env.VITE_API_URL;
 
@@ -133,9 +141,49 @@ const App = () => {
     }
   };
 
-  // Rest of your JSX stays exactly the same...
   return (
-    <div className="bg-blue-200 min-h-screen flex flex-col items-center justify-center p-4">
+    <div className="bg-blue-200 min-h-screen flex flex-col items-center justify-center p-4" style={{ position: "relative" }}>
+
+      {/* ===== ADMIN LOGIN BUTTON (top-right) ===== */}
+      <button
+        onClick={() => setShowLoginModal(true)}
+        style={{
+          position: "fixed",
+          top: "16px",
+          right: "20px",
+          zIndex: 1000,
+          padding: "9px 20px",
+          borderRadius: "40px",
+          border: "1.5px solid rgba(6,182,212,0.5)",
+          background: "linear-gradient(135deg, rgba(6,182,212,0.15), rgba(59,130,246,0.15))",
+          color: "#0ea5e9",
+          fontWeight: "700",
+          fontSize: "13px",
+          cursor: "pointer",
+          backdropFilter: "blur(8px)",
+          boxShadow: "0 4px 16px rgba(6,182,212,0.2)",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          transition: "all 0.2s",
+          fontFamily: "'Inter', 'Segoe UI', sans-serif",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "linear-gradient(135deg, rgba(6,182,212,0.35), rgba(59,130,246,0.35))";
+          e.currentTarget.style.boxShadow = "0 6px 20px rgba(6,182,212,0.4)";
+          e.currentTarget.style.transform = "translateY(-1px)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "linear-gradient(135deg, rgba(6,182,212,0.15), rgba(59,130,246,0.15))";
+          e.currentTarget.style.boxShadow = "0 4px 16px rgba(6,182,212,0.2)";
+          e.currentTarget.style.transform = "translateY(0)";
+        }}
+      >
+        <span style={{ fontSize: "16px" }}>🔐</span>
+        Admin Login
+      </button>
+
+      {/* ===== MAIN CARD ===== */}
       <div className="flex flex-col md:flex-row gap-5 p-8 bg-white rounded-xl shadow-lg w-full max-w-4xl">
         {/* Tank Section */}
         <div className="w-full md:w-1/2 flex flex-col items-center">
@@ -223,6 +271,28 @@ const App = () => {
           </button>
         </div>
       </div>
+
+      {/* ===== LOGIN MODAL ===== */}
+      {showLoginModal && (
+        <LoginModal
+          onClose={() => setShowLoginModal(false)}
+          onSuccess={() => {
+            localStorage.setItem("adminLoggedIn", "true");  // persist session
+            setShowLoginModal(false);
+            setShowAdminPanel(true);
+          }}
+        />
+      )}
+
+      {/* ===== ADMIN PANEL (full screen) ===== */}
+      {showAdminPanel && (
+        <AdminPanel
+          onClose={() => {
+            localStorage.removeItem("adminLoggedIn");  // clear session on explicit logout
+            setShowAdminPanel(false);
+          }}
+        />
+      )}
     </div>
   );
 };
