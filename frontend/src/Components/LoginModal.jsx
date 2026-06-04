@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 const ADMIN_CREDENTIALS = { id: "admin", password: "Water@2024" };
 const RECOVERY_KEY = import.meta.env.VITE_ADMIN_RECOVERY_KEY;
+const API_URL = import.meta.env.VITE_API_URL;
 
 /* ─────────────────────────────────────────────────────────── */
 /*  Reusable labelled input                                     */
@@ -86,11 +87,11 @@ const WaterSide = () => (
   }}>
     {/* Bubbles */}
     {[
-      { size: 120, left: "10%",  bottom: "8%",  delay: "0s",   dur: "6s"  },
-      { size: 80,  left: "60%",  bottom: "18%", delay: "1.5s", dur: "7.5s"},
-      { size: 50,  left: "35%",  bottom: "5%",  delay: "3s",   dur: "5.5s"},
-      { size: 90,  left: "75%",  bottom: "40%", delay: "0.8s", dur: "8s"  },
-      { size: 40,  left: "20%",  bottom: "55%", delay: "2.2s", dur: "6.5s"},
+      { size: 120, left: "10%", bottom: "8%", delay: "0s", dur: "6s" },
+      { size: 80, left: "60%", bottom: "18%", delay: "1.5s", dur: "7.5s" },
+      { size: 50, left: "35%", bottom: "5%", delay: "3s", dur: "5.5s" },
+      { size: 90, left: "75%", bottom: "40%", delay: "0.8s", dur: "8s" },
+      { size: 40, left: "20%", bottom: "55%", delay: "2.2s", dur: "6.5s" },
     ].map((b, i) => (
       <div key={i} style={{
         position: "absolute",
@@ -115,12 +116,12 @@ const WaterSide = () => (
       <svg width="140" height="170" viewBox="0 0 100 125" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="dropGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#7dd3fc"/>
-            <stop offset="100%" stopColor="#0ea5e9"/>
+            <stop offset="0%" stopColor="#7dd3fc" />
+            <stop offset="100%" stopColor="#0ea5e9" />
           </linearGradient>
           <linearGradient id="shineGrad" x1="0" y1="0" x2="0.5" y2="1">
-            <stop offset="0%" stopColor="white" stopOpacity="0.5"/>
-            <stop offset="100%" stopColor="white" stopOpacity="0"/>
+            <stop offset="0%" stopColor="white" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="white" stopOpacity="0" />
           </linearGradient>
         </defs>
         {/* Drop body */}
@@ -157,7 +158,7 @@ const WaterSide = () => (
       lineHeight: 1.6,
       maxWidth: "220px",
     }}>
-      Water Dispenser<br/>Management System
+      Smart  Water Dispenser<br /> System
     </p>
 
     {/* Wave at bottom */}
@@ -191,32 +192,53 @@ const WaterSide = () => (
 /*  Main Component                                             */
 /* ─────────────────────────────────────────────────────────── */
 const LoginModal = ({ onSuccess, onClose }) => {
-  const [mode, setMode]               = useState("login");
-  const [loginId, setLoginId]         = useState("");
-  const [password, setPassword]       = useState("");
-  const [showPwd, setShowPwd]         = useState(false);
-  const [error, setError]             = useState("");
+  const [mode, setMode] = useState("login");
+  const [loginId, setLoginId] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
   const [recoveryError, setRecoveryError] = useState("");
   const [recoverySuccess, setRecoverySuccess] = useState(false);
-  const [resendCooldown, setResendCooldown]   = useState(false);
-  const [resendCount, setResendCount]         = useState(0);
+  const [recoveredAccounts, setRecoveredAccounts] = useState([]);
+  const [resendCooldown, setResendCooldown] = useState(false);
+  const [resendCount, setResendCount] = useState(0);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError("");
-    if (loginId === ADMIN_CREDENTIALS.id && password === ADMIN_CREDENTIALS.password) {
-      onSuccess();
-    } else {
-      setError("Invalid Admin ID or password.");
+    try {
+      const res = await fetch(`${API_URL}/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: loginId, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        onSuccess();
+      } else {
+        setError(data.error || "Invalid Admin ID or password.");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Failed to connect to server. Check backend.");
     }
   };
 
   const handleKeyDown = e => { if (e.key === "Enter") handleLogin(); };
 
-  const handleRecovery = () => {
+  const handleRecovery = async () => {
     if (recoveryCode.trim() === RECOVERY_KEY) {
-      setRecoverySuccess(true);
-      setRecoveryError("");
+      try {
+        const res = await fetch(`${API_URL}/admin/accounts`);
+        const data = res.ok ? await res.json() : [];
+        setRecoveredAccounts(data);
+        setRecoverySuccess(true);
+        setRecoveryError("");
+      } catch (err) {
+        console.error("Recovery fetch error:", err);
+        setRecoverySuccess(true);
+        setRecoveryError("");
+      }
     } else {
       setRecoveryError("Invalid recovery key. Please check and try again.");
     }
@@ -375,14 +397,7 @@ const LoginModal = ({ onSuccess, onClose }) => {
                 </button>
               </div>
 
-              <div style={{
-                marginTop: "32px", padding: "14px 16px",
-                background: "#f0f9ff", borderRadius: "12px",
-                border: "1px solid #bae6fd",
-                fontSize: "12px", color: "#0369a1",
-              }}>
-                💡 <strong>Hint:</strong> Use your registered admin credentials to sign in.
-              </div>
+
             </>
           )}
 
@@ -477,11 +492,26 @@ const LoginModal = ({ onSuccess, onClose }) => {
                 background: "#f0fdf4", border: "1px solid #bbf7d0",
                 borderRadius: "14px", padding: "20px",
                 marginBottom: "24px", textAlign: "left",
+                maxHeight: "180px", overflowY: "auto",
               }}>
-                <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Admin ID</div>
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "#0369a1", marginBottom: "12px" }}>{ADMIN_CREDENTIALS.id}</div>
-                <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Password</div>
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "#d97706" }}>{ADMIN_CREDENTIALS.password}</div>
+                {recoveredAccounts.map((acc, idx) => (
+                  <div key={idx} style={{ marginBottom: idx === recoveredAccounts.length - 1 ? 0 : "14px" }}>
+                    <div style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>
+                      Admin ID ({idx === 0 ? "Primary" : `Account #${idx + 1}`})
+                    </div>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#0369a1", marginBottom: "4px" }}>{acc.id}</div>
+                    <div style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>Password</div>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#d97706" }}>{acc.password}</div>
+                  </div>
+                ))}
+                {recoveredAccounts.length === 0 && (
+                  <div>
+                    <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Admin ID</div>
+                    <div style={{ fontSize: "16px", fontWeight: "700", color: "#0369a1", marginBottom: "12px" }}>{ADMIN_CREDENTIALS.id}</div>
+                    <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Password</div>
+                    <div style={{ fontSize: "16px", fontWeight: "700", color: "#d97706" }}>{ADMIN_CREDENTIALS.password}</div>
+                  </div>
+                )}
               </div>
 
               <PrimaryBtn onClick={() => { setMode("login"); setRecoverySuccess(false); setRecoveryCode(""); }}>

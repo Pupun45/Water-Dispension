@@ -13,166 +13,190 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
-    }
+    body { font-family: 'Inter', sans-serif; }
+
     @media print {
-      * {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-      .no-print {
-        display: none !important;
-      }
-      #printArea {
-        margin-top: 20mm;
-      }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
+      #printArea { margin-top: 20mm; }
     }
+
+    /* Animated countdown progress ring */
+    .ring-wrap { display:flex; align-items:center; justify-content:center; gap:6px; }
+    #progressRing { transform:rotate(-90deg); }
+    #progressRing circle.track { fill:none; stroke:#e2e8f0; stroke-width:4; }
+    #progressRing circle.fill  { fill:none; stroke:#2563eb; stroke-width:4;
+      stroke-linecap:round; transition:stroke-dashoffset 1s linear; }
   </style>
 </head>
 
-<body class="flex items-center justify-center p-4 bg-gray-100">
+<body class="flex items-center justify-center min-h-screen p-4 bg-gray-100">
 
-  <div id="printArea" class="border-2 border-gray-300 rounded-2xl max-w-2xl w-full p-6 bg-white">
+  <div id="printArea" class="border-2 border-gray-300 rounded-2xl max-w-2xl w-full p-6 bg-white shadow-md">
 
     <!-- Header -->
     <div class="flex flex-col items-center text-center mb-8">
-      <h1 class="text-3xl font-semibold text-green-700 mb-2"> Payment Successful</h1>
-      <p class="text-gray-700 font-medium mt-2">
-        Please save this receipt for future reference.
-      </p>
+      <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+        <svg class="w-9 h-9 text-green-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <h1 class="text-3xl font-semibold text-green-700 mb-2">Payment Successful</h1>
+      <p class="text-gray-600 font-medium">Please save this receipt for future reference.</p>
     </div>
 
-    <!-- Table -->
+    <!-- Summary Table -->
     <div class="overflow-x-auto mb-8">
       <table class="w-full text-center border-collapse">
         <thead>
           <tr class="bg-gray-200">
-            <th class="py-2 px-4 border">Order ID</th>
-            <th class="py-2 px-4 border">Amount</th>
-            <th class="py-2 px-4 border">Status</th>
+            <th class="py-2 px-4 border border-gray-300 text-gray-700">Order ID</th>
+            <th class="py-2 px-4 border border-gray-300 text-gray-700">Amount</th>
+            <th class="py-2 px-4 border border-gray-300 text-gray-700">Status</th>
           </tr>
         </thead>
         <tbody>
           <tr class="bg-white">
-            <td class="py-2 px-4 border" id="orderId"></td>
-            <td class="py-2 px-4 border" id="totalAmount"></td>
-            <td class="py-2 px-4 border text-green-600 font-semibold">PAID</td>
+            <td class="py-2 px-4 border border-gray-200 text-sm text-gray-700 font-mono" id="orderId"></td>
+            <td class="py-2 px-4 border border-gray-200 font-bold text-gray-800"        id="totalAmount"></td>
+            <td class="py-2 px-4 border border-gray-200 text-green-600 font-semibold">PAID</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- Details -->
+    <!-- Transaction Details -->
     <div class="mb-8">
-      <h2 class="text-gray-600 text-center mb-4">Transaction Details</h2>
+      <h2 class="text-gray-500 text-center mb-4 font-medium">Transaction Details</h2>
 
-      <div class="grid grid-cols-1 gap-4 text-gray-800">
-        <div class="flex justify-between bg-gray-200 rounded-md p-3">
+      <div class="grid grid-cols-1 gap-3 text-gray-800">
+
+        <div class="flex justify-between bg-gray-100 rounded-lg p-3">
           <span class="font-semibold text-gray-600">Order ID</span>
-          <span id="orderId2"></span>
+          <span class="text-gray-800 font-mono text-sm" id="orderId2"></span>
         </div>
 
-        <div class="flex justify-between bg-gray-200 rounded-md p-3">
+        <div class="flex justify-between bg-gray-100 rounded-lg p-3">
           <span class="font-semibold text-gray-600">Amount</span>
-          <span id="amount2"></span>
+          <span class="text-gray-800 font-bold" id="amount2"></span>
         </div>
 
-        <div class="flex justify-between bg-gray-200 rounded-md p-3">
-          <span class="font-semibold text-gray-600">Date & Time</span>
-          <span id="currentTime"></span>
+        <div class="flex justify-between bg-gray-100 rounded-lg p-3">
+          <span class="font-semibold text-gray-600">Water</span>
+          <span class="text-blue-600 font-bold" id="liters2"></span>
         </div>
+
+        <div class="flex justify-between bg-gray-100 rounded-lg p-3">
+          <span class="font-semibold text-gray-600">Mobile</span>
+          <span class="text-gray-800 font-semibold" id="mobile2"></span>
+        </div>
+
+        <div class="flex justify-between bg-gray-100 rounded-lg p-3">
+          <span class="font-semibold text-gray-600">Date &amp; Time</span>
+          <span class="text-gray-800" id="currentTime"></span>
+        </div>
+
       </div>
     </div>
 
-    <!-- Footer -->
-    <div class="text-center text-sm text-gray-600 mb-6">
-      <p>For support contact: <span class="text-blue-600">robo@.in</span></p>
-      <p class="mt-1">Redirecting to home in <b><span id="countdown">10</span></b> seconds</p>
+    <!-- Footer / Countdown -->
+    <div class="text-center text-sm text-gray-500 mb-6 no-print">
+      <p>For support contact: <span class="text-blue-600 font-semibold">support@aquadispense.in</span></p>
+      <div class="ring-wrap mt-2">
+        <svg id="progressRing" width="28" height="28" viewBox="0 0 28 28">
+          <circle class="track" cx="14" cy="14" r="11"/>
+          <circle class="fill"  cx="14" cy="14" r="11"
+            stroke-dasharray="69.12"
+            stroke-dashoffset="0"
+            id="ringFill"/>
+        </svg>
+        <p>Redirecting to home in <b><span id="countdown">10</span></b> seconds</p>
+      </div>
     </div>
 
     <!-- Buttons -->
     <div class="flex flex-col sm:flex-row justify-center gap-4 no-print">
       <button onclick="downloadPDF()"
-        class="bg-blue-600 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-700">
+        class="bg-blue-600 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-700 font-semibold transition">
         Download PDF
       </button>
-
       <button onclick="window.print()"
-        class="bg-gray-600 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-700">
+        class="bg-gray-600 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-700 font-semibold transition">
         Print
       </button>
     </div>
 
   </div>
 
-<script type="module">
-  // 🔧 Use Vite environment variables with fallback
-  const API_URL = import.meta.env.VITE_API_URL || "https://water-dispenser.api.ionode.cloud";
-  
-  // Read query params
-  const params = new URLSearchParams(window.location.search);
+<script>
+  /* ── Read URL params ── */
+  const params  = new URLSearchParams(window.location.search);
   const orderId = params.get("order_id") || "N/A";
-  const amount = params.get("amount") || "0";
-  const liters = params.get("liters") || "0";  // 🔧 ADDED: liters param
+  const amount  = params.get("amount")   || "0";
+  const liters  = params.get("liters")   || "0";
+  const mobile  = params.get("mobile")   || "N/A";
 
-  document.getElementById("orderId").innerText = orderId;
-  document.getElementById("orderId2").innerText = orderId;
-  document.getElementById("totalAmount").innerText = "₹" + amount;
-  document.getElementById("amount2").innerText = "₹" + amount;
+  /* ── Fill fields ── */
+  document.getElementById("orderId").textContent     = orderId;
+  document.getElementById("orderId2").textContent    = orderId;
+  document.getElementById("totalAmount").textContent = "₹" + amount;
+  document.getElementById("amount2").textContent     = "₹" + amount;
+  document.getElementById("liters2").textContent     = liters + " Litres";
+  document.getElementById("mobile2").textContent     = mobile !== "N/A" ? "+91 " + mobile : "N/A";
 
-  // 🔧 NEW: Verify payment & deduct tank water
-  async function verifyPayment() {
-    try {
-      // 🔧 Added Accept header to ensure server returns JSON and not a redirect
-      const response = await fetch(`${API_URL}/payment-success?order_id=${orderId}&liters=${liters}`, {
-        headers: { "Accept": "application/json" }
-      });
-      const data = await response.json();
-      console.log('✅ Payment verified & water deducted:', data);
-    } catch (error) {
-      console.error('❌ Payment verification failed:', error);
-    }
-  }
-
-  // Run tank deduction on page load
-  verifyPayment();
-
-  // Live date & time
+  /* ── Live date/time ── */
   function updateTime() {
-    document.getElementById("currentTime").innerText =
-      new Date().toLocaleString("en-IN");
+    document.getElementById("currentTime").textContent =
+      new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
   }
   updateTime();
   setInterval(updateTime, 1000);
 
-  // Countdown redirect
+  /* ── Verify payment & deduct water (only runs once per page load) ── */
+  const API_URL = window.location.origin; // same server (port 3567)
+  async function verifyAndDeduct() {
+    try {
+      const res  = await fetch(
+        `${API_URL}/payment-success?order_id=${encodeURIComponent(orderId)}&liters=${encodeURIComponent(liters)}&mobile=${encodeURIComponent(mobile)}`,
+        { headers: { "Accept": "application/json" } }
+      );
+      const data = await res.json();
+      console.log("✅ Payment verified & water deducted:", data);
+    } catch (e) {
+      console.error("❌ Verify failed:", e);
+    }
+  }
+  verifyAndDeduct();
+
+  /* ── 10s countdown with SVG progress ring ── */
+  const HOME_URL   = "http://localhost:5173";
+  const CIRCUMFERENCE = 69.12; // 2 * π * 11
   let timeLeft = 10;
-  const countdown = document.getElementById("countdown");
+  const countEl = document.getElementById("countdown");
+  const ringEl  = document.getElementById("ringFill");
+
   const timer = setInterval(() => {
     timeLeft--;
-    countdown.innerText = timeLeft;
-    if (timeLeft === 0) {
+    countEl.textContent    = timeLeft;
+    ringEl.style.strokeDashoffset = CIRCUMFERENCE * (1 - timeLeft / 10);
+    if (timeLeft <= 0) {
       clearInterval(timer);
-      window.location.href = window.location.origin;
+      window.location.href = HOME_URL;
     }
   }, 1000);
 
-  // Download PDF
-  window.downloadPDF = async function() {
+  /* ── Download PDF ── */
+  window.downloadPDF = async function () {
     const { jsPDF } = window.jspdf;
-    const content = document.getElementById("printArea");
-
-    const canvas = await html2canvas(content, { scale: 2 });
-    const imgData = canvas.toDataURL("image/jpeg", 1.0);
-
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    pdf.addImage(imgData, "JPEG", 0, 10, pdfWidth, pdfHeight);
+    const content   = document.getElementById("printArea");
+    const canvas    = await html2canvas(content, { scale: 2, useCORS: true });
+    const imgData   = canvas.toDataURL("image/jpeg", 1.0);
+    const pdf       = new jsPDF("p", "mm", "a4");
+    const w         = pdf.internal.pageSize.getWidth();
+    const h         = (canvas.height * w) / canvas.width;
+    pdf.addImage(imgData, "JPEG", 0, 10, w, h);
     pdf.save(`Payment_Bill_${orderId}.pdf`);
-  }
+  };
 </script>
 
 </body>

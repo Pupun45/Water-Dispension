@@ -1,347 +1,60 @@
 require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
+
+const express    = require("express");
+const cors       = require("cors");
 const bodyParser = require("body-parser");
-const mongoose = require("mongoose");
-const fs = require("fs");
-const path = require("path");
 
-const { Cashfree, CFEnvironment } = require("cashfree-pg");
+const connectDB      = require("./config/db");
+const tankRoutes     = require("./routes/tankRoutes");
+const paymentRoutes  = require("./routes/paymentRoutes");
+const orderRoutes    = require("./routes/orderRoutes");
+const adminRoutes    = require("./routes/adminRoutes");
+const Admin          = require("./models/Admin");
 
-const app = express();
-const port = process.env.PORT || 3567;
-const FRONTEND_URL = process.env.FRONTEND_URL ;
-const BACKEND_URL = process.env.BACKEND_URL;
+/* ─── App Setup ─────────────────────────────────────────────── */
+const app          = express();
+const port         = process.env.PORT || 3567;
+const FRONTEND_URL = process.env.FRONTEND_URL;
 
 console.log("CORS Allowed Origin:", FRONTEND_URL);
 
-/* ================= MIDDLEWARE ================= */
+/* ─── Middleware ─────────────────────────────────────────────── */
 app.use(bodyParser.json());
 app.use(cors({
-  origin: [FRONTEND_URL, "http://localhost:5173", "https://water-dispenser.ionode.cloud"],
+  origin: [FRONTEND_URL, "http://localhost:5173"],
   methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  credentials: true,
 }));
 app.use(express.static("public"));
 
-/* ================= MONGODB CONNECTION ================= */
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.error("❌ MongoDB Error:", err));
-
-/* ================= TANK SCHEMA ================= */
-const tankSchema = new mongoose.Schema(
-  {
-    tank_capacity: { type: Number, required: true },
-    tds: { type: Number, required: true },
-    remaining: { type: Number, required: true },
-
-    // manual OR auto (no flags)
-    deducted_water: { type: Number },
-
-    request: { type: Number, default: 0 },
-  },
-  { timestamps: true }
-);
-
-const Tank = mongoose.model("Tank", tankSchema);
-
-/* ================= ORDER FILE SETUP ================= */
-const ORDERS_FILE = path.join(__dirname, "order.json");
-
-if (!fs.existsSync(ORDERS_FILE)) {
-  fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2));
-}
-
-function saveOrder(order) {
-  const orders = JSON.parse(fs.readFileSync(ORDERS_FILE, "utf-8"));
-  orders.push(order);
-  fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
-}
-
-/* ================= CASHFREE INIT ================= */
-const cashfree = new Cashfree(
-  CFEnvironment.SANDBOX,
-  process.env.CF_CLIENT_ID,
-  process.env.CF_CLIENT_SECRET
-);
-
-/* ================= TANK APIs ================= */
-
-// CORS moved to top middleware section
-
-// GET tank data
-app.get("/tank", async (req, res) => {
+/* ─── Database ───────────────────────────────────────────────── */
+const seedAdmin = async () => {
   try {
-    let tank = await Tank.findOne();
-
-    if (!tank) {
-      tank = await Tank.create({
-        tank_capacity: 102,
-        tds: 150,
-        remaining: 90,
-      });
-    }
-
-    // 🔑 Manual if exists, else auto
-    const hasManual =
-      tank.deducted_water !== undefined && tank.deducted_water !== null;
-
-    const deducted = hasManual
-      ? tank.deducted_water
-      : tank.tank_capacity - tank.remaining;
-
-    console.log(`[GET /tank] Returning request: ${tank.request}, remaining: ${tank.remaining}`);
-    res.json({
-      ...tank.toObject(),
-      deducted_water: deducted,
-      request: tank.request,
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch tank data" });
-  }
-});
-
-// UPDATE tank (manual override supported)
-app.put("/tank", async (req, res) => {
-  try {
-    const { tank_capacity, tds, remaining, deducted_water, request } = req.body;
-
-    const tank = await Tank.findOne();
-    if (!tank) return res.status(404).json({ error: "Tank not found" });
-
-    if (tank_capacity !== undefined)
-      tank.tank_capacity = Number(tank_capacity);
-
-    if (tds !== undefined)
-      tank.tds = Number(tds);
-
-    if (remaining !== undefined)
-      tank.remaining = Number(remaining);
-
-    // 🔑 RAW manual value (even 0)
-    if (Object.prototype.hasOwnProperty.call(req.body, "deducted_water")) {
-      tank.deducted_water = Number(deducted_water);
-    }
-
-    // 🔑 Explicitly update request if provided (handles 0 correctly)
-    if (request !== undefined) {
-      tank.request = Number(request);
-    }
-
-    await tank.save();
-
-    res.json({ message: "Tank updated", tank });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to update tank" });
-  }
-});
-
-// DELETE / RESET tank
-app.delete("/tank", async (req, res) => {
-  try {
-    await Tank.deleteMany();
-
-    const tank = await Tank.create({
-      tank_capacity: 4000,
-      tds: 150,
-      remaining: 4000,
-      request: 0,
-    });
-
-    res.json({ message: "Tank reset", tank });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to reset tank" });
-  }
-});
-
-/* ================= WATER REQUEST API ================= */
-app.post("/tank/request", async (req, res) => {
-  try {
-    const { request } = req.body;
-
-    if (request === undefined || request === null) {
-      return res.status(400).json({ error: "request is required" });
-    }
-
-    const numericRequest = Number(request);
-    if (Number.isNaN(numericRequest) || numericRequest < 0) {
-      return res.status(400).json({ error: "Invalid request value" });
-    }
-
-    // Atomic update with UPSERT (creates document if it doesn't exist)
-    const tank = await Tank.findOneAndUpdate(
-      {},
-      { request: numericRequest },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    );
-    
-    console.log(`[POST /tank/request] Atomic set request to: ${tank.request}`);
-
-    res.json({
-      message: "Request stored, proceed to payment",
-      request: tank.request,
-      remaining: tank.remaining,
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to process request" });
-  }
-});
-
-/* ================= CREATE CASHFREE ORDER ================= */
-app.post("/create-order", async (req, res) => {
-  try {
-    const { amount, mobile, liters } = req.body;
-
-    if (!amount || !mobile || !liters) {
-      return res.status(400).json({ error: "Missing fields" });
-    }
-
-    const tank = await Tank.findOne();
-    if (!tank) return res.status(404).json({ error: "Tank not found" });
-
-    if (liters > tank.remaining) {
-      return res.status(400).json({
-        error: "INSUFFICIENT_WATER",
-        available: tank.remaining,
-      });
-    }
-
-    const orderId = `order_${Date.now()}`;
-    
-    const frontendUrl = FRONTEND_URL;  
-
-    const request = {
-      order_id: orderId,
-      order_amount: Number(amount),
-      order_currency: "INR",
-      customer_details: {
-        customer_id: mobile,
-        customer_name: "Water User",
-        customer_email: "test@example.com",
-        customer_phone: mobile,
-      },
-      order_meta: {
-  return_url: `${FRONTEND_URL}/bill.html?order_id=${orderId}&amount=${amount}&liters=${liters}`
-},
-    };
-
-    const response = await cashfree.PGCreateOrder(request);
-
-    res.json({
-      payment_session_id: response.data.payment_session_id,
-      order_id: response.data.order_id,
-      remaining: tank.remaining,
-      tds: tank.tds,
-    });
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data?.message || "Order creation failed" });
-  }
-});
-
-/* ================= SET REQUEST AFTER PAYMENT ================= */
-// Called directly from bill.html after payment redirect — no Cashfree check needed
-app.post("/tank/set-request", async (req, res) => {
-  try {
-    const { liters, order_id } = req.body;
-    console.log(`[set-request] BODY RECEIVED: liters=${liters}, order_id=${order_id}`);
-
-    const used = Number(liters);
-
-    if (!used || used <= 0) {
-      return res.status(400).json({ error: `Invalid liters value: ${liters}` });
-    }
-
-    // Simple find → assign → save (guaranteed to work)
-    const tank = await Tank.findOne();
-    if (!tank) {
-      return res.status(404).json({ error: "Tank not found" });
-    }
-
-    console.log(`[set-request] BEFORE: request=${tank.request}, remaining=${tank.remaining}`);
-
-    tank.request = used;
-    tank.remaining = Math.max(0, tank.remaining - used);
-    await tank.save();
-
-    console.log(`✅ [set-request] SAVED: request=${tank.request}, remaining=${tank.remaining}`);
-
-    res.json({
-      message: "Dispense request set",
-      request: tank.request,
-      remaining: tank.remaining,
-    });
-  } catch (err) {
-    console.error("❌ [set-request] Error:", err);
-    res.status(500).json({ error: "Failed to set request" });
-  }
-});
-
-
-/* ================= PAYMENT SUCCESS ================= */
-app.get("/payment-success", async (req, res) => {
-  const { order_id, liters } = req.query;
-  console.log(`Verifying payment for Order: ${order_id}, Liters: ${liters}`);
-
-  try {
-    const response = await cashfree.PGFetchOrder(order_id);
-
-    if (response.data.order_status === "PAID") {
-      const used = Number(liters) || 0;
-      
-      // Atomic update: subtract remaining and set request in one go
-      const tank = await Tank.findOneAndUpdate(
-        {},
-        { 
-          $set: { 
-            request: used,
-            deducted_water: undefined 
-          },
-          $inc: { remaining: -used }
-        },
-        { new: true, upsert: true, setDefaultsOnInsert: true }
-      );
-
-      if (!tank) return res.status(404).send("Tank not found");
-
-      const paidAmount = response.data.order_amount;
-      console.log(`✅ SUCCESS: Atomic Tank request set to ${used}L for Order ${order_id}, Amount: ${paidAmount}`);
-
-      saveOrder({
-        order_id,
-        amount: paidAmount,
-        liters: used,
-        remaining_water: tank.remaining,
-        payment_status: "PAID",
-      });
-
-      // 🔧 Fixed: Always return JSON for AJAX/Fetch requests to prevent unwanted redirects during verification
-      if (req.headers.accept?.includes('application/json') || req.headers['x-requested-with'] || req.xhr) {
-        return res.json({ 
-          message: "Payment verified", 
-          request: tank.request, 
-          remaining: tank.remaining,
-          amount: paidAmount 
-        });
-      }
-
-      // 🔧 Fixed: Include 'amount' in redirect so the bill can show it even if the URL changes
-      res.redirect(
-        `${FRONTEND_URL}/bill.html?order_id=${order_id}&amount=${paidAmount}&liters=${used}&remaining=${tank.remaining}`
-      );
-    } else {
-      console.log(`❌ Payment not paid: ${response.data.order_status}`);
-      res.send("<h3>Payment Failed or Pending</h3>");
+    const admins = await Admin.find({ id: "admin" });
+    if (admins.length > 1) {
+      const keep = admins[0];
+      await Admin.deleteMany({ id: "admin", _id: { $ne: keep._id } });
+      console.log("🧹 Cleaned up duplicate 'admin' accounts.");
+    } else if (admins.length === 0) {
+      await Admin.create({ id: "admin", password: "Water@2024" });
+      console.log("🌱 Default admin account seeded: admin / Water@2024");
     }
   } catch (err) {
-    console.error("❌ Error verifying payment:", err);
-    res.send("<h3>Error verifying payment</h3>");
+    console.error("❌ Failed to seed default admin:", err);
   }
+};
+
+connectDB().then(() => {
+  seedAdmin();
 });
 
-/* ================= SERVER ================= */
+/* ─── Routes ─────────────────────────────────────────────────── */
+app.use("/tank",    tankRoutes);    // /tank CRUD
+app.use("/orders",  orderRoutes);   // /orders — order history
+app.use("/admin",   adminRoutes);   // /admin routes
+app.use("/",        paymentRoutes); // /tank/request, /create-order, /payment-success
+
+/* ─── Start Server ───────────────────────────────────────────── */
 app.listen(port, () => {
-  console.log(` Server running on http://localhost:${port}`);
+  console.log(`🚀 Server running on http://localhost:${port}`);
 });

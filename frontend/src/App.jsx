@@ -19,6 +19,10 @@ const App = () => {
   const [amountInput, setAmountInput] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // Active dispenser saved by admin — read from localStorage
+  const [activeTankId,   setActiveTankId]   = useState(() => localStorage.getItem("activeTankId")   || "");
+  const [activeTankName, setActiveTankName] = useState(() => localStorage.getItem("activeTankName") || "");
+
   // Admin state — persisted in localStorage so refresh keeps session alive
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(
@@ -29,7 +33,6 @@ const App = () => {
 
   //  FIXED: Safe fetch that shows REAL errors instead of crashing
   const safeFetch = async (url, options = {}) => {
-    console.log('Fetching:', url); // Debug
     const res = await fetch(url, options);
     
     if (!res.ok) {
@@ -48,23 +51,45 @@ const App = () => {
     return res.json();
   };
 
-  // 🔧 FIXED: Now shows exact error instead of crashing
+  // Fetch the admin-saved tank by ID (or first tank as fallback)
   const fetchTankSettings = async () => {
     try {
-      const data = await safeFetch(`${API_URL}/tank`);
-      setTankCapacity(data.tank_capacity );
-      setTankRemaining(data.remaining );
+      const id = localStorage.getItem("activeTankId");
+      let data;
+      if (id) {
+        data = await safeFetch(`${API_URL}/tank/${id}`);
+      } else {
+        // fallback: first tank in list
+        const list = await safeFetch(`${API_URL}/tank`);
+        data = Array.isArray(list) ? list[0] : null;
+      }
+      if (!data) return;
+      setTankCapacity(data.tank_capacity);
+      setTankRemaining(data.remaining);
       if (data.tds != null) setTds(data.tds);
-      console.log('✅ Tank data:', data);
     } catch (err) {
       console.error("Error fetching tank settings:", err.message);
-      // Keep default values - app still works
     }
   };
 
+  // Sync activeTankId/Name when admin saves from panel (same tab)
+  useEffect(() => {
+    const onStorage = () => {
+      const id   = localStorage.getItem("activeTankId")   || "";
+      const name = localStorage.getItem("activeTankName") || "";
+      setActiveTankId(id);
+      setActiveTankName(name);
+      fetchTankSettings();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   useEffect(() => {
     fetchTankSettings();
-  }, []);
+    const t = setInterval(fetchTankSettings, 8000);
+    return () => clearInterval(t);
+  }, [activeTankId]);
 
   const calculateFromLiters = (value) => {
     if (value > tankRemaining) {
@@ -179,7 +204,7 @@ const App = () => {
           e.currentTarget.style.transform = "translateY(0)";
         }}
       >
-        <span style={{ fontSize: "16px" }}>🔐</span>
+      
         Admin Login
       </button>
 
